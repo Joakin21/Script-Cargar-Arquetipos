@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from pymongo import MongoClient
 import os
 import shutil
+import traceback
 
 #etiquetas
 DEFINITION = '{http://schemas.openehr.org/v1}definition'
@@ -81,44 +82,55 @@ def obtenerTipoAndContenidoNodo(nodox, tipo_arquetipo, nodos_term_definitions):
         tipo_nodo = primer_tipo_nodo
             
     else:
-        cantidad_hijos = len(nodox.find(ATTRIBUTES).findall(CHILDREN))
-        if cantidad_hijos > 1:
-            tipo_nodo = "CHOICE"
-            #extraer hijos tipo 1
-            #lista_hijos = nodo1.find(ATTRIBUTES).find(CHILDREN).find(ATTRIBUTES).find(CHILDREN).findall(CODE_LIST) 
-            for children in nodox.find(ATTRIBUTES).findall(CHILDREN):
-                if children.find(ATTRIBUTES):
-                    lista_hijos = children.find(ATTRIBUTES).find(CHILDREN).findall(CODE_LIST)
-                    #if(nodo1.find(ATTRIBUTES).find(CHILDREN).find(ATTRIBUTES))
-                            
-                    #extrae hijos tipo 2 (nodos)
-                    contenido = recolectarHijosForma2(nodox,nodos_term_definitions,lista_hijos)
+        expresion_correcta = True
+        #cantidad_hijos = len(nodox.find(ATTRIBUTES).findall(CHILDREN))
+        try:
+            cantidad_hijos = len(nodox.find(ATTRIBUTES).findall(CHILDREN))
+        except:
+            expresion_correcta = False
+        
+        if(expresion_correcta):
+            if cantidad_hijos > 1:
+                tipo_nodo = "CHOICE"
+                #extraer hijos tipo 1
+                #lista_hijos = nodo1.find(ATTRIBUTES).find(CHILDREN).find(ATTRIBUTES).find(CHILDREN).findall(CODE_LIST) 
+                for children in nodox.find(ATTRIBUTES).findall(CHILDREN):
+                    if children.find(ATTRIBUTES):
+                        lista_hijos = children.find(ATTRIBUTES).find(CHILDREN).findall(CODE_LIST)
+                        #if(nodo1.find(ATTRIBUTES).find(CHILDREN).find(ATTRIBUTES))
+                                
+                        #extrae hijos tipo 2 (nodos)
+                        contenido = recolectarHijosForma2(nodox,nodos_term_definitions,lista_hijos)
 
-            direccion_hijos_tipo_1 = nodox.find(ATTRIBUTES).findall(CHILDREN)
-            hijos_tipo_1 = {}
-            for hijos in direccion_hijos_tipo_1:
-                hijos_tipo_1["text"] = hijos.find(RM_TYPE_NAME).text
-                hijos_tipo_1["description"] = ""
-                contenido.append(hijos_tipo_1)
+                direccion_hijos_tipo_1 = nodox.find(ATTRIBUTES).findall(CHILDREN)
                 hijos_tipo_1 = {}
+                for hijos in direccion_hijos_tipo_1:
+                    hijos_tipo_1["text"] = hijos.find(RM_TYPE_NAME).text
+                    hijos_tipo_1["description"] = ""
+                    contenido.append(hijos_tipo_1)
+                    hijos_tipo_1 = {}
 
-        else:
-            tipo_nodo = nodox.find(ATTRIBUTES).find(CHILDREN).find(RM_TYPE_NAME).text
-            if tipo_nodo == "DV_CODED_TEXT":
-                lista_hijos = nodox.find(ATTRIBUTES).find(CHILDREN).find(ATTRIBUTES).find(CHILDREN).findall(CODE_LIST)
-                contenido = recolectarHijosForma2(nodox,nodos_term_definitions,lista_hijos)
-                    
-            if tipo_nodo == "DV_ORDINAL":
-                hijos_tipo_ordinal = {}
-                lista_hijos_tipo_ordinal = nodox.find(ATTRIBUTES).find(CHILDREN).findall(LIST)
-                #extrae hijos tipo 2 (nodos)
-                contenido = recolectarHijosForma2(nodox,nodos_term_definitions,lista_hijos_tipo_ordinal,2)
-                #numeros_dv_ordinal  = []
-                indice_contenido = 0
-                for hijo in lista_hijos_tipo_ordinal:
-                    #numeros_dv_ordinal.append(hijo.find(VALUE).text)
-                    contenido[indice_contenido]["numero"] = hijo.find(VALUE).text
-                    indice_contenido += 1
+            else:
+                tipo_nodo = nodox.find(ATTRIBUTES).find(CHILDREN).find(RM_TYPE_NAME).text
+                if tipo_nodo == "DV_CODED_TEXT":
+                    try:
+                        lista_hijos = nodox.find(ATTRIBUTES).find(CHILDREN).find(ATTRIBUTES).find(CHILDREN).findall(CODE_LIST)
+                        contenido = recolectarHijosForma2(nodox,nodos_term_definitions,lista_hijos)
+                    except:
+                        lista_hijos = []
+                    #contenido = recolectarHijosForma2(nodox,nodos_term_definitions,lista_hijos)
+                        
+                if tipo_nodo == "DV_ORDINAL":
+                    hijos_tipo_ordinal = {}
+                    lista_hijos_tipo_ordinal = nodox.find(ATTRIBUTES).find(CHILDREN).findall(LIST)
+                    #extrae hijos tipo 2 (nodos)
+                    contenido = recolectarHijosForma2(nodox,nodos_term_definitions,lista_hijos_tipo_ordinal,2)
+                    #numeros_dv_ordinal  = []
+                    indice_contenido = 0
+                    for hijo in lista_hijos_tipo_ordinal:
+                        #numeros_dv_ordinal.append(hijo.find(VALUE).text)
+                        contenido[indice_contenido]["numero"] = hijo.find(VALUE).text
+                        indice_contenido += 1
         
     return contenido, tipo_nodo
 
@@ -310,9 +322,16 @@ def construirArquetipo(root):
     for atrib in contribuidores:
         atributos_contribuidores.append(atrib.text)
     
-    #para other identefication
     
-    major_version_id = root.find(UID).find(VALUE).text
+    #para other identefication
+    #major_version_id = root.find(UID).find(VALUE).text
+    
+    try:
+        major_version_id = root.find(UID).find(VALUE).text
+    except:
+        major_version_id = "Major version id not found"
+    
+
     canonical_md5 = ""
     custodian_organisation = ""#para current custodian
     custodian_namespace = ""#para current custodian
@@ -369,7 +388,10 @@ def construirArquetipo(root):
     arquetipo["estructura"+str(numero_de_estructuras+2)]["nodo6"]["value"] = atributos_licencing
     arquetipo["estructura"+str(numero_de_estructuras+2)]["nodo6"]["tipo"] = "info"
     if (root.find(TRANSLATIONS)):
-        traductor = root.find(TRANSLATIONS).find(AUTHOR).text
+        try:
+            traductor = root.find(TRANSLATIONS).find(AUTHOR).text
+        except:
+            traductor = "translator not reported"
         arquetipo["estructura"+str(numero_de_estructuras+2)]["nodo7"]={}
         arquetipo["estructura"+str(numero_de_estructuras+2)]["nodo7"]["text"] = "translators"
         arquetipo["estructura"+str(numero_de_estructuras+2)]["nodo7"]["value"] = traductor
@@ -403,12 +425,14 @@ def cargarArquetipos(path_y_lista_arquetipos):
     no_cargados = 0
     print (path_arquetipos+" no cargados:")
     for arquetipo in lista_arquetipos:
+        #procesarXML(arq_collection, path_arquetipos+arquetipo)
         try:
           procesarXML(arq_collection, path_arquetipos+arquetipo)
-          #print ("cargando: " + arquetipo)
+          print ("cargado: " + arquetipo)
           cargados+=1
-        except:
-          print(arquetipo)
+        except Exception as e:
+          print("error arquetipo:",arquetipo)
+          traceback.print_exc()
           if(path_arquetipos == "cluster/"):
               pathDestino = 'no_cargados/cluster'
           if(path_arquetipos == "composition/"):
@@ -425,18 +449,37 @@ def cargarArquetipos(path_y_lista_arquetipos):
               pathDestino = 'no_cargados/entry/observation'
           if(path_arquetipos == "section/"):
               pathDestino = 'no_cargados/section'
-           
           newPath = shutil.copy(path_arquetipos+arquetipo, pathDestino)
+          
           no_cargados+=1
+        print("------------------------------------------------------------")
     global total_cargados
     total_cargados += cargados
     global total_no_cargados
     total_no_cargados += no_cargados
     print("Total Cargados:", cargados)
     print("Total no cargados:", no_cargados)
-    print("------------------------------------------------------------")
+    #$print("------------------------------------------------------------")
 
-
+"""
+          if(path_arquetipos == "cluster/"):
+              pathDestino = 'no_cargados/cluster'
+          if(path_arquetipos == "composition/"):
+              pathDestino = 'no_cargados/composition'
+          if(path_arquetipos == "entry/action/"):
+              pathDestino = 'no_cargados/entry/action'
+          if(path_arquetipos == "entry/admin_entry/"):
+              pathDestino = 'no_cargados/entry/admin_entry'
+          if(path_arquetipos == "entry/evaluation/"):
+              pathDestino = 'no_cargados/entry/evaluation'
+          if(path_arquetipos == "entry/instruction/"):
+              pathDestino = 'no_cargados/entry/instruction'
+          if(path_arquetipos == "entry/observation/"):
+              pathDestino = 'no_cargados/entry/observation'
+          if(path_arquetipos == "section/"):
+              pathDestino = 'no_cargados/section'
+          newPath = shutil.copy(path_arquetipos+arquetipo, pathDestino)
+"""
 client = MongoClient()
 db = client['proyecto4']
 arq_collection = db["arquetipos"]
