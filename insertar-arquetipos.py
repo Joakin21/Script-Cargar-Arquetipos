@@ -42,8 +42,12 @@ XSI_TYPE = '{http://www.w3.org/2001/XMLSchema-instance}type'
 
 #funciones
 def obtenerNombreArquetipo(root):
-    nombre = root.find(ONTOLOGY).find(TERM_DEFINITIONS).find(ITEMS).find(ITEMS).text
-    return nombre
+    titulo = root.find(ONTOLOGY).find(TERM_DEFINITIONS).find(ITEMS).find(ITEMS).text
+    primer_caracter = titulo[0]
+    ultimos_caracteres = titulo[len(titulo)-4:]
+    if primer_caracter == "*" and (ultimos_caracteres == "(en)" or ultimos_caracteres == "(ja)"):
+        titulo = titulo[1:len(titulo)-4]
+    return titulo
 
 def obtenerNombreEstructuras(estructurasPrincipales):
     nombre_estructuras = []
